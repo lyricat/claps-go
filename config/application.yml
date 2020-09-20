@@ -1,0 +1,8 @@
+server:
+  port: 3001
+log:
+#  filePath: ./logs/
+#  fileName: test.log
+  fileType: Stdout # Stdout or File
+  level: DebugLevel # InfoLevel or DebugLevel or ErrorLevel or FatalLevel or PanicLevel or TraceLevel or WarnLevel
+  formatter: text # text or json

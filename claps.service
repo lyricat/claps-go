@@ -1,0 +1,14 @@
+[Unit]
+Description=Claps API Service
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_NAME
+Restart=on-failure
+RestartSec=1s
+EnvironmentFile=YOUR_ENV_FILE_PATH
+ExecStart=/YOUR_ECHO_FILE_PATH/claps --format post --cmd '["/bin/journalctl","-u","THE_SERVICE_YOU_WANNA_WATCH","-f","-o","cat"]'
+
+[Install]
+WantedBy=multi-user.target
