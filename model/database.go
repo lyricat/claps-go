@@ -1,18 +1,23 @@
-package dao
+package model
 
 import (
 	"database/sql"
 	"fmt"
+	"github.com/hashicorp/go-multierror"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 	config "github.com/spf13/viper"
 	"time"
-	"github.com/hashicorp/go-multierror"
 )
 
 var db *gorm.DB
 
-func InitDB() (*gorm.DB,error) {
+/**
+ * @Description: 初始化数据库
+ * @return *gorm.DB
+ * @return error
+ */
+func InitDB() (*gorm.DB, error) {
 
 	if db != nil {
 		return db, nil
@@ -30,7 +35,7 @@ func InitDB() (*gorm.DB,error) {
 
 	if err != nil {
 		log.Panic("failed to connect database,err :" + err.Error())
-		return nil,err
+		return nil, err
 	}
 
 	db.DB().SetConnMaxLifetime(time.Hour)
@@ -38,17 +43,28 @@ func InitDB() (*gorm.DB,error) {
 	db.DB().SetMaxIdleConns(32)
 
 	db.SingularTable(true)
+	if config.GetString("gorm.logMode") == "false" {
+		db.LogMode(false)
+	} else {
+		db.LogMode(true)
+	}
 
-	return db,nil
+	return db, nil
 }
 
-/*
-获取数据库句柄
-*/
+/**
+ * @Description: 获取数据库句柄
+ * @return *sql.DB
+ */
 func GetSqlDB() *sql.DB {
 	return db.DB()
 }
 
+/**
+ * @Description: 事物函数封装
+ * @param fn
+ * @return error
+ */
 func ExecuteTx(fn func(*gorm.DB) error) error {
 	tx := db.Begin()
 	defer tx.RollbackUnlessCommitted()
@@ -60,7 +76,11 @@ func ExecuteTx(fn func(*gorm.DB) error) error {
 	return tx.Commit().Error
 }
 
-// Auto migrate
+/**
+ * @Description: Auto migrate
+ * @param db
+ * @return error
+ */
 type MigrateHandler func(db *gorm.DB) error
 
 var registeredMigrateHandlers []MigrateHandler
@@ -69,6 +89,11 @@ func RegisterMigrateHandler(h MigrateHandler) {
 	registeredMigrateHandlers = append(registeredMigrateHandlers, h)
 }
 
+/**
+ * @Description: model中init里注册的函数
+ * @param db
+ * @return error
+ */
 func MigrateInDB(db *gorm.DB) error {
 	var result *multierror.Error
 	for _, h := range registeredMigrateHandlers {

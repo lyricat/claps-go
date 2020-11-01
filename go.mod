@@ -3,12 +3,11 @@ module claps-test
 go 1.14
 
 require (
-	github.com/astaxie/beego v1.12.2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fox-one/mixin-sdk-go v1.0.2
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gin-contrib/cache v1.1.0
-	github.com/gin-contrib/sessions v0.0.3
+	github.com/gin-contrib/sessions v0.0.3 // indirect
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-playground/validator/v10 v10.3.0 // indirect
 	github.com/gofrs/uuid v3.3.0+incompatible

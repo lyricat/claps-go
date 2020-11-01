@@ -7,14 +7,18 @@ import (
 	"net/http"
 )
 
-//自定义错误类型　Err
+/**
+ * @Description: 自定义错误类型　Err
+ */
 type Err struct {
 	Code    int    // 错误码
 	Message string // 展示给用户看的
 	Errord  error  // 保存内部错误信息
 }
 
-//所有都是指针类型
+/**
+ * @Description: 所有都是指针类型
+ */
 var ok = &Err{Code: 0, Message: "成功"}
 
 const (
@@ -33,13 +37,21 @@ func NewErr(err error, code int, message string) *Err {
 	return &Err{Code: code, Message: message, Errord: err}
 }
 
-//实现Error接口,把三个字段拼接起来
+/**
+ * @Description: 实现Error接口,把三个字段拼接起来
+ * @receiver err
+ * @return string
+ */
 func (err *Err) Error() string {
-	//return fmt.Sprintf("Err - code: %d, message: %s, error: %s", err.Code, err.Message, err.Errord)
-	return fmt.Sprintf("Err - code: %d, message: %s. ", err.Code, err.Message)
+	return fmt.Sprintf("Err - code: %d, message: %s, error: %s", err.Code, err.Message, err.Errord)
+	//return fmt.Sprintf("Err - code: %d, message: %s. ", err.Code, err.Message)
 }
 
-// SendSuccessResp 返回成功请求
+/**
+ * @Description: SendSuccessResp 返回成功请求
+ * @param c
+ * @param data
+ */
 func sendSuccessResp(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    ok.Code,
@@ -48,25 +60,25 @@ func sendSuccessResp(c *gin.Context, data interface{}) {
 	})
 }
 
-// SendFailResp 返回失败请求,失败就不返回data了
+/**
+ * @Description: SendFailResp 返回失败请求,失败就不返回data了
+ * @param c
+ * @param httpCode
+ * @param err
+ */
 func sendFailResp(c *gin.Context, httpCode int, err *Err) {
-	c.JSON(httpCode, gin.H{
+	c.AbortWithStatusJSON(httpCode, gin.H{
 		"code":    err.Code,
 		"message": err.Error(),
 	})
 }
 
-// HandleResponse 统一处理异常，统一处理日志，统一处理返回
-//　所有Err要求在service层封装好,返还给前端
-// 400 401 501
-/*
-func test(ctx *gin.Context) {
-	//正确请求
-	HandleResponse(ctx,OK,model.User{})
-	//出错请求
-	HandleResponse(ctx,NewErr(errors.New("test"),ErrDataBase,"查询项目时出错"),nil)
-}
-*/
+/**
+ * @Description:HandleResponse 统一处理异常，统一处理日志，统一处理返回,所有Err要求在service层封装好,返还给前端 , 400 401 501
+ * @param c
+ * @param err
+ * @param data
+ */
 func HandleResponse(c *gin.Context, err *Err, data interface{}) {
 	// 如果没有错误，也就是没有Errod字段,就是正常请求
 	if err == nil {

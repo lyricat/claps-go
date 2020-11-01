@@ -1,26 +1,31 @@
 package util
 
 import (
-	"encoding/json"
 	"github.com/google/go-github/v32/github"
 	"math/rand"
 )
 
 const (
-	UID = "UID"
+	UID 	= 	"UID"
+	MIXINID = 	"MIXINID"
 )
 
 type MCache struct {
-	Github github.User
+	Github       github.User
 	GithubEmails []github.UserEmail
-	GithubAuth bool
-	MixinId string
-	MixinAuth bool
+	GithubAuth   bool
+	MixinId      string
+	MixinAuth    bool
 }
 
 var longLetters = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_sky")
 
-func RandUp(n int) string{
+/**
+ * @Description: 生成一个长度为n的随机字符串
+ * @param n
+ * @return string
+ */
+func RandUp(n int) string {
 	if n <= 0 {
 		return ""
 	}
@@ -34,16 +39,4 @@ func RandUp(n int) string{
 		b[i] = longLetters[arc]
 	}
 	return string(b)
-}
-
-func UserToJson(user *github.User)(userJson string,err error)  {
-	jsonBytes,err := json.Marshal(*user)
-	userJson = string(jsonBytes)
-	return
-}
-
-func JsonToUser(userJson string)(user *github.User,err error)  {
-	user = &github.User{}
-	err = json.Unmarshal([]byte(userJson), &user)
-	return
 }

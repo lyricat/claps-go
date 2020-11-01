@@ -10,9 +10,10 @@ import (
 	"time"
 )
 
-/*
-初始化日志,logrus日志库
-*/
+/**
+ * @Description: logrus日志库,设置log等级
+ * @param level
+ */
 func setLogLevel(level string) {
 	switch level {
 	case "InfoLevel":
@@ -34,6 +35,10 @@ func setLogLevel(level string) {
 	}
 }
 
+/**
+ * @Description: 设置log格式
+ * @param formatter
+ */
 func setLogFormatter(formatter string) {
 	if formatter == "json" {
 		logrus.SetFormatter(&logrus.JSONFormatter{})
@@ -42,6 +47,9 @@ func setLogFormatter(formatter string) {
 	}
 }
 
+/**
+ * @Description: 设置log输出文件
+ */
 func setLogOutput() {
 	now := time.Now()
 	//获取日志文件路径
@@ -73,7 +81,7 @@ func setLogOutput() {
 		var err error
 		writer, err = os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0755)
 		if err != nil {
-			log.Panic("create file log.txt failed: %v", err)
+			log.Panic("create file log.txt failed: ", err)
 		}
 	} else {
 		writer = os.Stdout

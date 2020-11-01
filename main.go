@@ -1,7 +1,7 @@
 package main
 
 import (
-	"claps-test/dao"
+	"claps-test/model"
 	"claps-test/router"
 	"claps-test/service"
 	"claps-test/util"
@@ -11,32 +11,28 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
+
+/**
+ * @Description:初始化配置文件,Mixin,log,DB和cache
+ */
 func initAllConfig() {
-	/*
-		初始化配置文件,Mixin,log,DB和cache
-	*/
 	util.InitConfig()
 	util.InitMixin()
 	util.InitLog()
-	if err := util.InitClient();err != nil{
-		log.Error(err)
-	}
 }
 
 func main() {
 
-	cmd := flag.String( "cmd", "", "process identity")
+	cmd := flag.String("cmd", "", "process identity")
 	flag.Parse()
-
 	initAllConfig()
-	db, _ := dao.InitDB()
+	db, _ := model.InitDB()
 	if db != nil {
 		defer db.Close()
 	}
-
 	switch *cmd {
 	case "migrate", "setdb":
-		if multierror := dao.Migrate(); multierror != nil {
+		if multierror := model.Migrate(); multierror != nil {
 			log.Error(multierror)
 		}
 	default:
@@ -46,15 +42,14 @@ func main() {
 		go service.SyncAssets()
 		//定期进行提现操作,并更改数据库
 		go service.SyncTransfer()
+		//定期获取汇率
+		go service.SyncFiat()
 
-		//util.RegisterType()
-		//util.Cors()
-
-		r := gin.Default()
+		r := gin.New()
 		r = router.CollectRoute(r)
-		serverport := viper.GetString("server.port")
-		if serverport != "" {
-			panic(r.Run(":" + serverport))
+		serverPort := viper.GetString("server.port")
+		if serverPort != "" {
+			panic(r.Run(":" + serverPort))
 		} else {
 			panic(r.Run(":3001"))
 		}

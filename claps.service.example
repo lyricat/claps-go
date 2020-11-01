@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=YOUR_NAME
+User=ec2-user
 Restart=on-failure
 RestartSec=1s
 EnvironmentFile=YOUR_ENV_FILE_PATH

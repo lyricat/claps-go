@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+/**
+ * @Description: 打印log
+ * @return gin.HandlerFunc
+ */
 func LoggerToFile() gin.HandlerFunc {
 
 	return func(c *gin.Context) {

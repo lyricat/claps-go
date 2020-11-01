@@ -2,121 +2,151 @@ package controller
 
 import (
 	"claps-test/middleware"
+	"claps-test/model"
+	"claps-test/service"
 	"claps-test/util"
-	"fmt"
+	"errors"
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
-	"net/http"
 )
 
-const (
-	RANDOMUID = "randomUid"
-)
-
-
-/*
-功能:返回前端randomUid
-说明:调用此函数时候用户没有登录github,生成randomUid,并存储redis
+/**
+ * @Description: 用code换取Token,此时没有发放token,成功授权后发放token,token中记录github的userId
+ * @param ctx
  */
-func loginGithub(ctx *gin.Context)  {
-	resp := make(map[string]interface{})
-	uid,_ := ctx.Get(util.UID)
-	randomUid,_ := uid.(string)
-
-	resp["user"] = nil
-	resp["randomUid"] = randomUid
-	resp["mixinAuth"] = false
-	resp["envs"] = gin.H{
-		"GITHUB_CLIENT_ID":      viper.GetString("GITHUB_CLIENT_ID"),
-		"GITHUB_OAUTH_CALLBACK": viper.GetString("GITHUB_OAUTH_CALLBACK"),
-		"MIXIN_CLIENT_ID":       viper.GetString("MIXIN_CLIENT_ID"),
+func Oauth(ctx *gin.Context) {
+	type oauth struct {
+		Code string `json:"code" form:"code"`
 	}
+	var (
+		err    *util.Err
+		oauth_ oauth
+	)
+
+	resp := make(map[string]interface{})
+
+	if err1 := ctx.ShouldBindQuery(&oauth_); err1 != nil {
+		err := util.NewErr(err1, util.ErrBadRequest, "")
+		util.HandleResponse(ctx, err, resp)
+		return
+	}
+
+	var oauthTokenUrl = service.GetOauthToken(oauth_.Code)
+	//处理请求的URL,获得Token指针
+	token2, err := service.GetToken(oauthTokenUrl)
+	if err != nil {
+		util.HandleResponse(ctx, err, resp)
+		return
+	}
+
+	// 通过token，获取用户信息
+	user, err := service.GetUserInfo(token2)
+	if err != nil {
+		util.HandleResponse(ctx, err, resp)
+		return
+	}
+
+	//通过token,获取Email信息
+	emails, err := service.ListEmailsByToken(token2.AccessToken)
+	//如果因为超时出错,重新请求
+	if err != nil {
+		util.HandleResponse(ctx, err, resp)
+		return
+	}
+
+	//生成token
+	//randomUid := util.RandUp(32)
+	randomUid := *user.ID
+	jwtToken, err1 := middleware.GenToken(randomUid)
+	if err1 != nil {
+		util.HandleResponse(ctx, util.NewErr(err1, util.ErrInternalServer, "gen token error"), nil)
+		return
+	}
+
+
+	//向数据库中存储user信息
+	u := model.User{}
+	u.Id = *user.ID
+	u.Name = *user.Login
+	if user.AvatarURL != nil {
+		u.AvatarUrl = *user.AvatarURL
+	}
+	if user.Name != nil {
+		u.DisplayName = *user.Name
+	}
+	for _, v := range emails {
+		//主email,参与分钱
+		if *v.Primary {
+			u.Email = *v.Email
+			break
+		}
+	}
+
+	//每次授权后都更新数据库中的信息
+	err = service.InsertOrUpdateUser(&u)
+	if err != nil {
+		util.HandleResponse(ctx, err, resp)
+		return
+	}
+
+	//token 的uid是github的userId
+	resp["token"] = jwtToken
 	util.HandleResponse(ctx, nil, resp)
-	return
 }
-/*
-功能:认证用户信息,判断github和mixin是否登录绑定
-说明:之前有JWTAuthmiddleWare,有jwt说明一定github授权,ctx里设置uid
+
+/**
+ * @Description: 返回环境信息,此时用户没有登录github没有
+ * @param ctx
+ */
+func Environments(ctx *gin.Context) {
+	resp := make(map[string]interface{})
+
+	resp["GITHUB_CLIENT_ID"] = util.GithubClinetId
+	resp["GITHUB_OAUTH_CALLBACK"] = util.GithubOauthCallback
+	resp["MIXIN_CLIENT_ID"] = util.MixinClientId
+	resp["MIXIN_OAUTH_CALLBACK"] = util.MixinOauthCallback
+
+	util.HandleResponse(ctx, nil, resp)
+}
+
+/**
+ * @Description: 认证用户信息,判断github和mixin是否登录绑定,之前有JWTAuthMiddleWare,有jwt说明一定github授权,ctx里设置uid
+ * @param ctx
  */
 func AuthInfo(ctx *gin.Context) {
 	resp := make(map[string]interface{})
 
-	//获取claim
-	uid,_ := ctx.Get(util.UID)
-	randomUid,_ := uid.(string)
-	log.Debug("RandomUid = ",randomUid)
+	var val interface{}
+	var ok bool
+	if val, ok = ctx.Get(util.UID); !ok {
+		util.HandleResponse(ctx, util.NewErr(errors.New(""), util.ErrDataBase, "ctx get uid error"), resp)
+		return
+	}
+	uid := val.(int64)
 
-	//从redis取出mcache
-	mcache := &util.MCache{}
-	err1 := util.Rdb.Get(randomUid,mcache)
-	if err1 != nil{
-		log.Error("Get cache error:",err1)
+	var mixinAuth bool
+	mixinId,err := service.GetMixinIdByUserId(uid)
+	if err != nil{
+		util.HandleResponse(ctx,err,resp)
+		return
+	}
+	//没有绑定mixin
+	if mixinId != ""{
+		mixinAuth = true
+	}else {
+		mixinAuth = false
+	}
+
+	user,err := service.GetUserById(uid)
+	if err != nil{
+		util.HandleResponse(ctx,err,resp)
 		return
 	}
 
-	//从redis中取出github信息返回
-	resp["user"] = mcache.Github
+	resp["user"] = *user
 	resp["randomUid"] = uid
-	resp["mixinAuth"] = mcache.MixinAuth
-	resp["envs"] = gin.H{
-		"GITHUB_CLIENT_ID":      viper.GetString("GITHUB_CLIENT_ID"),
-		"GITHUB_OAUTH_CALLBACK": viper.GetString("GITHUB_OAUTH_CALLBACK"),
-		"MIXIN_CLIENT_ID":       viper.GetString("MIXIN_CLIENT_ID"),
-	}
+	resp["mixinAuth"] = mixinAuth
 
 	util.HandleResponse(ctx, nil, resp)
 	return
 }
 
-/*
-功能:再无Token的情况下,返回Uid和Token,并且redis缓存uid-mcache
-*/
-func noToken(c *gin.Context)(randomUid string)  {
-	resp := make(map[string]interface{})
-	randomUid = util.RandUp(32)
-
-	token,err := middleware.GenToken(randomUid)
-	if err != nil{
-		c.AbortWithStatusJSON(http.StatusOK,gin.H{
-			"message":"generate token error.",
-		})
-	}
-	resp["token"] = token
-
-	mcache := util.MCache{}
-	err1 := util.Rdb.Set(randomUid,mcache,-1)
-	if err1 != nil{
-		util.HandleResponse(c,util.NewErr(err1,util.ErrDataBase,"cache set error"),nil)
-		return
-	}
-
-	util.HandleResponse(c,nil,resp)
-	return
-}
-
-/*
-功能:判断用户是否携带Token,没有则发放Token
-说明:
- */
-func getToken(ctx *gin.Context)  {
-	authHeader := ctx.Request.Header.Get("Authorization")
-	log.Debug("authHeader = ",authHeader)
-
-	var randomUid string
-	//无Token,生成Token返回,生成Uid
-	if authHeader == "" {
-		log.Debug("No Token")
-		randomUid = noToken(ctx)
-		fmt.Println("randomUid = ",randomUid)
-		return
-	}
-}
-
-//模拟三目运算符号
-func If(condition bool, trueVal, falseVal interface{}) interface{} {
-	if condition {
-		return trueVal
-	}
-	return falseVal
-}
