@@ -2,7 +2,7 @@ package util
 
 import (
 	"github.com/google/go-github/v32/github"
-	"math/rand"
+	"crypto/rand"
 )
 
 const (
