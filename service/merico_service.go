@@ -173,9 +173,9 @@ func GetMetricByGroupIdAndUserEmails(groupId string, metric string, members []mo
 		sum = sum.Add(v.Value)
 	}
 
-	for _, v := range recv.Data {
-		v.Value = v.Value.Div(sum)
-		log.Info("success get devValue:%v", v)
+	for k, _ := range recv.Data {
+		recv.Data[k].Value = recv.Data[k].Value.Div(sum)
+		log.Info("success get devValue:%v", recv.Data[k])
 	}
 	primaryEmailStrs = recv.Data
 
