@@ -4,12 +4,13 @@ import (
 	"claps-test/model"
 	"claps-test/util"
 	"context"
+	"time"
+
 	"github.com/fox-one/mixin-sdk-go"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"time"
 )
 
 /**
@@ -132,6 +133,18 @@ func SyncTransfer() {
 			err = model.TRANSFER.InsertOrUpdateTransfer(&transfer)
 			if err != nil {
 				log.Error(err.Error())
+			}
+
+			// notify the user
+			// @TODO save the conversation
+			// @TODO send message with state management
+			conv, err := util.CreateConversation(ctx, user, transfer.MixinId)
+			if err != nil {
+				log.Error(err)
+			}
+
+			if err := util.SendTransferNotification(ctx, user, conv, transfer.AssetId, transfer.Amount.StringFixed(8), transfer.TraceId); err != nil {
+				log.Error(err)
 			}
 		}
 		time.Sleep(300 * time.Millisecond)
